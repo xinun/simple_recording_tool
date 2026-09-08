@@ -1,6 +1,12 @@
-# Meet 음성 녹음기
+# Windows 화면 음성 녹음기
+테스트 환경: window11
 
 Windows에서 컴퓨터로 들리는 Google Meet 소리와 내 마이크를 함께 녹음해 하나의 MP3 파일로 저장하는 포터블 앱입니다. 화면은 녹화하지 않습니다.
+
+## 
+릴리즈 0.1.0 확인
+https://github.com/xinun/simple_recording_tool/releases/tag/v0.1.0
+
 
 ## 사용 방법
 
