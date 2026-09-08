@@ -84,8 +84,8 @@ internal sealed class MainForm : Form
         var panel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2 };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        panel.Controls.Add(CreateField("소리가 나오는 스피커·헤드폰(화면 녹음이 안된다면 장비를 확인하시고 새로고침을 눌러주세요)", _speakerBox), 0, 0);
-        _refreshButton.Margin = new Padding(8, 24, 0, 0);
+        panel.Controls.Add(CreateField("소리가 나오는 스피커·헤드폰\r\n(화면 녹음이 안 된다면 장비를 확인하고 새로고침을 눌러주세요)", _speakerBox), 0, 0);
+        _refreshButton.Margin = new Padding(8, 40, 0, 0);
         _refreshButton.AutoSize = true;
         panel.Controls.Add(_refreshButton, 1, 0);
         return panel;
