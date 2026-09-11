@@ -25,6 +25,8 @@ https://github.com/xinun/simple_recording_tool/releases/tag/v0.1.0
 - 녹음 시작 전에 Windows 설정에서 이 앱의 마이크 접근을 허용해야 합니다.
 - Bluetooth 헤드셋은 통화 모드로 전환될 때 음질이 낮아질 수 있습니다.
 - 녹음 중 스피커·헤드폰 또는 마이크 장치를 변경하지 마세요.
+  - 장치 오류로 녹음이 중단되어도 **녹음 종료**를 누르면 수집된 내용을 MP3로 저장하고 경고를 표시합니다. 중단된 원본의 남은 구간은 무음이며, 새 장치로 자동 전환되지는 않습니다.
+  - MP3 저장에 실패하면 복구할 수 있도록 임시 WAV를 보존하고 오류 창에 경로를 표시합니다.
 - Windows에 기본 통신 장치가 지정되어 있지 않으면 목록의 첫 번째 활성 장치를 자동 선택합니다.
 - 마이크가 없거나 필요하지 않으면 컴퓨터에서 재생되는 소리만 녹음할 수 있습니다.
 - 회사 정책과 관련 법규를 확인하고 회의 참가자에게 녹음 사실을 알리세요.
@@ -39,6 +41,8 @@ https://github.com/xinun/simple_recording_tool/releases/tag/v0.1.0
 .\.dotnet\dotnet.exe build --configuration Release
 .\publish.ps1
 ```
+
+장치 중단 및 저장 회귀 검증: `.\.dotnet\dotnet.exe run --project tests/RecorderChecks.csproj --configuration Release`
 
 포터블 실행 파일은 `dist\MeetRecorder.exe`에 생성됩니다.
 

@@ -16,12 +16,17 @@ internal sealed class AudioRecorder : IDisposable
     private string? _microphoneTempPath;
     private Stopwatch? _recordingClock;
     private bool _disposed;
+    private CaptureStopTracker? _speakerStop;
+    private CaptureStopTracker? _microphoneStop;
+
+    public string? CaptureWarning { get; private set; }
 
     public bool IsRecording { get; private set; }
 
     public void Start(MMDevice speaker, MMDevice? microphone, string workingDirectory)
     {
         if (IsRecording) throw new InvalidOperationException("이미 녹음 중입니다.");
+        CaptureWarning = null;
 
         Directory.CreateDirectory(workingDirectory);
         var token = Guid.NewGuid().ToString("N");
@@ -41,6 +46,8 @@ internal sealed class AudioRecorder : IDisposable
 
             _speakerCapture.DataAvailable += SpeakerDataAvailable;
             if (_microphoneCapture is not null) _microphoneCapture.DataAvailable += MicrophoneDataAvailable;
+            _speakerStop = new CaptureStopTracker(_speakerCapture);
+            if (_microphoneCapture is not null) _microphoneStop = new CaptureStopTracker(_microphoneCapture);
             _speakerCapture.StartRecording();
             _microphoneCapture?.StartRecording();
             IsRecording = true;
@@ -59,23 +66,26 @@ internal sealed class AudioRecorder : IDisposable
 
         IsRecording = false;
         var elapsed = _recordingClock?.Elapsed ?? TimeSpan.Zero;
-        await StopCapturesAsync();
-        _speakerFile?.Complete(elapsed);
-        _microphoneFile?.Complete(elapsed);
-        _speakerFile?.Dispose();
-        _microphoneFile?.Dispose();
-        _speakerFile = null;
-        _microphoneFile = null;
-        _recordingClock?.Stop();
-
         try
         {
+            await StopCapturesAsync();
+            _speakerFile?.Complete(elapsed);
+            _microphoneFile?.Complete(elapsed);
+            _speakerFile?.Dispose();
+            _microphoneFile?.Dispose();
+            _speakerFile = null;
+            _microphoneFile = null;
+            _recordingClock?.Stop();
             await Task.Run(() => MixToMp3(outputPath, progress));
+            DeleteTemporaryFiles();
+        }
+        catch (Exception exception)
+        {
+            throw new IOException($"{exception.Message}\n\n저장하지 못한 녹음의 임시 WAV 파일을 보존했습니다.\n{_speakerTempPath}\n{_microphoneTempPath}", exception);
         }
         finally
         {
             CleanupCaptures();
-            DeleteTemporaryFiles();
         }
     }
 
@@ -123,6 +133,8 @@ internal sealed class AudioRecorder : IDisposable
                 progress?.Report(Math.Min(99, (int)(written * 100 / expectedBytes)));
             }
             writer.Flush();
+            // Windows requires the output handle to be closed before renaming.
+            writer.Dispose();
 
             File.Move(partialPath, outputPath, true);
             progress?.Report(100);
@@ -150,27 +162,13 @@ internal sealed class AudioRecorder : IDisposable
 
     private async Task StopCapturesAsync()
     {
-        var waits = new List<Task>();
-        if (_speakerCapture is not null)
-            waits.Add(StopCaptureAsync(_speakerCapture));
-        if (_microphoneCapture is not null)
-            waits.Add(StopCaptureAsync(_microphoneCapture));
-        await Task.WhenAll(waits);
-    }
-
-    private static Task StopCaptureAsync(IWaveIn capture)
-    {
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Stopped(object? _, StoppedEventArgs args)
-        {
-            capture.RecordingStopped -= Stopped;
-            if (args.Exception is null) completion.TrySetResult();
-            else completion.TrySetException(args.Exception);
-        }
-
-        capture.RecordingStopped += Stopped;
-        capture.StopRecording();
-        return completion.Task;
+        var waits = new List<Task<Exception?>>();
+        if (_speakerStop is not null) waits.Add(_speakerStop.StopAsync());
+        if (_microphoneStop is not null) waits.Add(_microphoneStop.StopAsync());
+        var errors = await Task.WhenAll(waits);
+        CaptureWarning = errors.Any(error => error is not null)
+            ? "오디오 장치 오류로 일부 녹음이 중단되었습니다. 중단된 구간은 무음으로 저장됩니다."
+            : null;
     }
 
     private void SpeakerDataAvailable(object? sender, WaveInEventArgs e) => _speakerFile?.Write(e.Buffer, e.BytesRecorded);
@@ -184,6 +182,10 @@ internal sealed class AudioRecorder : IDisposable
         _microphoneCapture?.Dispose();
         _speakerCapture = null;
         _microphoneCapture = null;
+        _speakerStop?.Dispose();
+        _microphoneStop?.Dispose();
+        _speakerStop = null;
+        _microphoneStop = null;
         _speakerFile?.Dispose();
         _microphoneFile?.Dispose();
         _speakerFile = null;

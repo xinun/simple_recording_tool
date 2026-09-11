@@ -254,13 +254,16 @@ internal sealed class MainForm : Form
         _progressBar.Visible = true;
         _progressBar.Value = 0;
 
-        var outputPath = BuildOutputPath();
         var progress = new Progress<int>(value => _progressBar.Value = Math.Clamp(value, 0, 100));
         try
         {
+            var outputPath = BuildOutputPath();
             await _recorder.StopAndSaveAsync(outputPath, progress);
-            _statusLabel.Text = "저장 완료";
-            MessageBox.Show(this, $"MP3 파일을 저장했습니다.\n\n{outputPath}", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var warning = _recorder.CaptureWarning;
+            _statusLabel.Text = warning is null ? "저장 완료" : "저장 완료 (장치 오류 발생)";
+            MessageBox.Show(this, $"MP3 파일을 저장했습니다.\n\n{outputPath}" +
+                (warning is null ? "" : $"\n\n{warning}"), "저장 완료", MessageBoxButtons.OK,
+                warning is null ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             OpenSaveFolder();
         }
         catch (Exception exception)
